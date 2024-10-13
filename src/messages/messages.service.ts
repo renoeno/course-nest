@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Message } from './entities/message.entity';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
@@ -6,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PersonsService } from 'src/persons/persons.service';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { TokenPayloadDto } from 'src/auth/dto/token-payload.dto';
 
 @Injectable()
 export class MessagesService {
@@ -43,6 +48,7 @@ export class MessagesService {
   async findOne(id: number) {
     const message = await this.messageRepository.findOne({
       where: { id },
+      relations: ['sender', 'receiver'],
     });
 
     if (!message) {
@@ -52,10 +58,13 @@ export class MessagesService {
     return message;
   }
 
-  async create(createMessageDto: CreateMessageDto) {
-    const { senderId, receiverId } = createMessageDto;
+  async create(
+    createMessageDto: CreateMessageDto,
+    tokenPayload: TokenPayloadDto,
+  ) {
+    const { receiverId } = createMessageDto;
 
-    const sender = await this.personsService.findOne(senderId);
+    const sender = await this.personsService.findOne(tokenPayload.sub);
 
     const receiver = await this.personsService.findOne(receiverId);
 
@@ -79,10 +88,16 @@ export class MessagesService {
     };
   }
 
-  async update(id: number, updateMessageDto: UpdateMessageDto) {
-    const updatedMessage = await this.messageRepository.findOne({
-      where: { id },
-    });
+  async update(
+    id: number,
+    updateMessageDto: UpdateMessageDto,
+    tokenPayload: TokenPayloadDto,
+  ) {
+    const updatedMessage = await this.findOne(id);
+
+    if (updatedMessage.sender.id !== tokenPayload.sub) {
+      throw new ForbiddenException('You can only update your own messages');
+    }
 
     updatedMessage.message = updateMessageDto.message ?? updatedMessage.message;
     updatedMessage.read = updateMessageDto.read ?? updatedMessage.read;
@@ -90,10 +105,12 @@ export class MessagesService {
     return this.messageRepository.save(updatedMessage);
   }
 
-  async delete(id: number) {
-    const deletedMessage = this.messageRepository.findOne({
-      where: { id },
-    });
+  async delete(id: number, tokenPayload: TokenPayloadDto) {
+    const deletedMessage = await this.findOne(id);
+
+    if (deletedMessage.sender.id !== tokenPayload.sub) {
+      throw new ForbiddenException('You can only update your own messages');
+    }
 
     if (!deletedMessage) {
       throw new NotFoundException('Message not found');

@@ -6,8 +6,5 @@ export class CreateMessageDto {
   readonly message: string;
 
   @IsPositive()
-  senderId: number;
-
-  @IsPositive()
   receiverId: number;
 }

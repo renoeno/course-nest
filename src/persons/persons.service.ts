@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,19 +9,25 @@ import { UpdatePersonDto } from './dto/update-person.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Person } from './entities/person.entity';
 import { Repository } from 'typeorm';
+import { HashingService } from 'src/auth/hashing/hashing.service';
+import { TokenPayloadDto } from 'src/auth/dto/token-payload.dto';
 
 @Injectable()
 export class PersonsService {
   constructor(
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
+    private readonly hashingService: HashingService,
   ) {}
   async create(createPersonDto: CreatePersonDto) {
     try {
+      const passwordHash = await this.hashingService.hash(
+        createPersonDto.password,
+      );
       const personData = {
         name: createPersonDto.name,
         email: createPersonDto.email,
-        passwordHash: createPersonDto.password,
+        passwordHash: passwordHash,
       };
 
       const newPerson = this.personRepository.create(personData);
@@ -59,11 +66,27 @@ export class PersonsService {
     return person;
   }
 
-  async update(id: number, updatePersonDto: UpdatePersonDto) {
+  async update(
+    id: number,
+    updatePersonDto: UpdatePersonDto,
+    tokenPayload: TokenPayloadDto,
+  ) {
+    if (updatePersonDto.password) {
+      const passwordHash = await this.hashingService.hash(
+        updatePersonDto.password,
+      );
+
+      updatePersonDto['passwordHash'] = passwordHash;
+    }
+
     const person = await this.personRepository.preload({
       id,
       ...updatePersonDto,
     });
+
+    if (person.id !== tokenPayload.sub) {
+      throw new ForbiddenException('You can only update your own data');
+    }
 
     if (!person) {
       throw new NotFoundException('Person not found');
@@ -72,13 +95,17 @@ export class PersonsService {
     return this.personRepository.save(person);
   }
 
-  async remove(id: number) {
+  async remove(id: number, tokenPayload: TokenPayloadDto) {
     const person = await this.personRepository.findOne({
       where: { id },
     });
 
     if (!person) {
       throw new NotFoundException('Person not found');
+    }
+
+    if (person.id !== tokenPayload.sub) {
+      throw new ForbiddenException('You can only update your own data');
     }
 
     return this.personRepository.delete(id);
