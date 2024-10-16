@@ -7,6 +7,12 @@ import {
   Param,
   Delete,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  ParseFilePipeBuilder,
+  HttpStatus,
 } from '@nestjs/common';
 import { PersonsService } from './persons.service';
 import { CreatePersonDto } from './dto/create-person.dto';
@@ -14,6 +20,7 @@ import { UpdatePersonDto } from './dto/update-person.dto';
 import { AuthTokenGuard } from 'src/auth/guards/auth-token.guard';
 import { TokenPayloadParam } from 'src/auth/params/token-payload.param';
 import { TokenPayloadDto } from 'src/auth/dto/token-payload.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('persons')
 export class PersonsController {
@@ -53,5 +60,27 @@ export class PersonsController {
     @TokenPayloadParam() tokenPayload: TokenPayloadDto,
   ) {
     return this.personsService.remove(+id, tokenPayload);
+  }
+
+  @UseGuards(AuthTokenGuard)
+  @Post('upload-picture')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPicture(
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: /jpeg|jpg|png/g,
+        })
+        .addMaxSizeValidator({
+          maxSize: 1024 * 1024 * 5,
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    file: Express.Multer.File,
+    @TokenPayloadParam() tokenPayload: TokenPayloadDto,
+  ) {
+    return this.personsService.uploadPicture(file, tokenPayload);
   }
 }

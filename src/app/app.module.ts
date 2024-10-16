@@ -7,6 +7,8 @@ import { ConfigModule } from '@nestjs/config';
 import { PersonsModule } from 'src/persons/persons.module';
 import * as Joi from '@hapi/joi';
 import { AuthModule } from 'src/auth/auth.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import * as path from 'path';
 
 @Module({
   imports: [
@@ -31,6 +33,10 @@ import { AuthModule } from 'src/auth/auth.module';
       database: process.env.DATABASE_DATABASE,
       autoLoadEntities: Boolean(process.env.DATABASE_AUTOLOADENTITIES),
       synchronize: Boolean(process.env.DATABASE_SYNCHRONIZE),
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: path.resolve(__dirname, '..', '..', 'pictures'),
+      serveRoot: '/pictures',
     }),
     MessagesModule,
     PersonsModule,

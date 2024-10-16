@@ -27,24 +27,25 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     let passwordIsValid = false;
 
-    const person = this.personRepository.findOneBy({
+    const person = await this.personRepository.findOneBy({
       email: loginDto.email,
+      active: true,
     });
 
     if (!person) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User not authorized');
     }
 
     passwordIsValid = await this.hashingService.compare(
       loginDto.password,
-      (await person).passwordHash,
+      person.passwordHash,
     );
 
     if (!passwordIsValid) {
       throw new UnauthorizedException('Invalid user or password');
     }
 
-    return this.createTokens(await person);
+    return this.createTokens(person);
   }
 
   async refreshToken(refreshToken: string) {
@@ -54,14 +55,13 @@ export class AuthService {
         this.jwtConfiguration,
       );
 
-      console.log(sub);
-
       const person = await this.personRepository.findOneBy({
         id: sub,
+        active: true,
       });
 
       if (!person) {
-        throw new NotFoundException('User not found');
+        throw new NotFoundException('User not authorized');
       }
 
       return this.createTokens(person);

@@ -32,4 +32,10 @@ export class Person {
 
   @OneToMany(() => Message, (message) => message.sender)
   messages: Message[];
+
+  @Column({ default: true })
+  active: boolean;
+
+  @Column({ default: '' })
+  picture: string;
 }
