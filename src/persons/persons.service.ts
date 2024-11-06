@@ -74,34 +74,35 @@ export class PersonsService {
     updatePersonDto: UpdatePersonDto,
     tokenPayload: TokenPayloadDto,
   ) {
-    if (updatePersonDto.password) {
+    const personData = {
+      name: updatePersonDto.name,
+    };
+    if (updatePersonDto?.password) {
       const passwordHash = await this.hashingService.hash(
         updatePersonDto.password,
       );
 
-      updatePersonDto['passwordHash'] = passwordHash;
+      personData['passwordHash'] = passwordHash;
     }
 
     const person = await this.personRepository.preload({
       id,
-      ...updatePersonDto,
+      ...personData,
     });
-
-    if (person.id !== tokenPayload.sub) {
-      throw new ForbiddenException('You can only update your own data');
-    }
 
     if (!person) {
       throw new NotFoundException('Person not found');
+    }
+
+    if (person.id !== tokenPayload.sub) {
+      throw new ForbiddenException('You can only update your own data');
     }
 
     return this.personRepository.save(person);
   }
 
   async remove(id: number, tokenPayload: TokenPayloadDto) {
-    const person = await this.personRepository.findOne({
-      where: { id },
-    });
+    const person = await this.findOne(id);
 
     if (!person) {
       throw new NotFoundException('Person not found');
@@ -111,7 +112,7 @@ export class PersonsService {
       throw new ForbiddenException('You can only update your own data');
     }
 
-    return this.personRepository.delete(id);
+    return this.personRepository.delete(person);
   }
 
   async uploadPicture(
@@ -136,6 +137,6 @@ export class PersonsService {
     await fs.writeFile(fileFullPath, file.buffer);
 
     person.picture = fileName;
-    this.personRepository.save(person);
+    return this.personRepository.save(person);
   }
 }
