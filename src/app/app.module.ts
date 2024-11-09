@@ -9,6 +9,8 @@ import * as Joi from '@hapi/joi';
 import { AuthModule } from 'src/auth/auth.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import * as path from 'path';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -38,11 +40,24 @@ import * as path from 'path';
       rootPath: path.resolve(__dirname, '..', '..', 'pictures'),
       serveRoot: '/pictures',
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 10000,
+        limit: 10,
+        blockDuration: 5000,
+      },
+    ]),
     MessagesModule,
     PersonsModule,
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
