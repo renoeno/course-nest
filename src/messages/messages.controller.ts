@@ -18,22 +18,27 @@ import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { AuthTokenGuard } from 'src/auth/guards/auth-token.guard';
 import { TokenPayloadParam } from 'src/auth/params/token-payload.param';
 import { TokenPayloadDto } from 'src/auth/dto/token-payload.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('messages')
 @Controller('messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @Get()
+  @ApiBearerAuth()
   findAll(@Query() paginationDto: PaginationDto) {
     return this.messagesService.findAll(paginationDto);
   }
 
   @Get(':id')
+  @ApiBearerAuth()
   findOne(@Param('id') id: number) {
     return this.messagesService.findOne(id);
   }
 
   @UseGuards(AuthTokenGuard)
+  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @Post()
   create(
@@ -44,6 +49,7 @@ export class MessagesController {
   }
 
   @UseGuards(AuthTokenGuard)
+  @ApiBearerAuth()
   @Patch(':id')
   update(
     @Param('id') id: number,
@@ -54,6 +60,7 @@ export class MessagesController {
   }
 
   @UseGuards(AuthTokenGuard)
+  @ApiBearerAuth()
   @Delete(':id')
   remove(
     @Param('id') id: number,
